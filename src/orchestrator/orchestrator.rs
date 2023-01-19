@@ -31,6 +31,7 @@ use tokio::sync::mpsc::Sender;
 use tokio_stream::StreamExt;
 use typed_builder::TypedBuilder;
 use uuid::Uuid;
+use colored::Colorize;
 
 use crate::config::Configuration;
 use crate::db::models as dbmodels;
@@ -505,9 +506,9 @@ impl<'a> Drop for JobTask<'a> {
             // If there are dependencies, the error is probably from another task
             // If there are no dependencies, the error was caused by something else
             let errmsg = if self.jobdef.dependencies.is_empty() {
-                "error occured"
+                "error occured".red()
             } else {
-                "error on other task"
+                "error on other task".red()
             };
 
             self.bar.finish_with_message(format!("[{} {} {}] Stopped, {msg}",
