@@ -12,18 +12,16 @@
 
 use std::convert::TryFrom;
 
-//use anyhow::Error;
 use anyhow::Result;
 use clap::ArgMatches;
-//use resiter::AndThen;
-use tracing::trace;
+use tracing::{error, trace};
 
 use crate::package::condition::ConditionCheckable;
 use crate::package::condition::ConditionData;
-use crate::package::ParseDependency;
 use crate::package::Package;
 use crate::package::PackageName;
 use crate::package::PackageVersionConstraint;
+use crate::package::ParseDependency;
 use crate::repository::Repository;
 use crate::util::docker::ImageName;
 use crate::util::EnvironmentVariableName;
@@ -37,139 +35,147 @@ enum DependencyType {
 #[derive(Debug)]
 struct DependenciesNode {
     name: String,
-    //dependency_type: DependencyType,
     dependencies: Vec<(DependenciesNode, DependencyType)>,
 }
 
-//fn build_dependencies_tree(p: Package, repo: &Repository, conditional_data: &ConditionData<'_>) -> DependenciesNode {
-//    /// helper fn with bad name to check the dependency condition of a dependency and parse the dependency into a tuple of
-//    /// name and version for further processing
-//    fn process<D: ConditionCheckable + ParseDependency>(
-//        d: &D,
-//        conditional_data: &ConditionData<'_>,
-//    ) -> Result<(bool, PackageName, PackageVersionConstraint)> {
-//        // Check whether the condition of the dependency matches our data
-//        let take = d.check_condition(conditional_data)?;
-//        let (name, version) = d.parse_as_name_and_version()?;
-//
-//        // (dependency check result, name of the dependency, version of the dependency)
-//        Ok((take, name, version))
-//    }
-//    let deps = p.dependencies();
-//    vec![
-//        (DependencyType::BUILDTIME, deps.build()),
-//        (DependencyType::RUNTIME, deps.runtime()),
-//    ].map(|(dep_type, deps)| {
-//        let deps = deps.iter().map(move |d| process(d, conditional_data))
-//            // Now filter out all dependencies where their condition did not match our
-//            // `conditional_data`.
-//            .filter(|res| match res {
-//                Ok((true, _, _)) => true,
-//                Ok((false, _, _)) => false,
-//                Err(_) => true,
-//            })
-//            // Map out the boolean from the condition, because we don't need that later on
-//            .map(|res| res.map(|(_, name, vers)| (name, vers)));
-//    })
-//}
-//
 fn print_dependencies_tree(node: DependenciesNode, level: usize, is_runtime_dep: bool) {
     let ident = "  ".repeat(level);
     let name = node.name;
     let suffix = if is_runtime_dep { "*" } else { "" };
     println!("{ident}- {name}{suffix}");
     for (node, dep_type) in node.dependencies {
-        print_dependencies_tree(node, level+1, dep_type == DependencyType::RUNTIME);
+        print_dependencies_tree(node, level + 1, dep_type == DependencyType::RUNTIME);
     }
 }
-fn build_dependencies_tree(p: Package, repo: &Repository, conditional_data: &ConditionData<'_>) -> DependenciesNode {
-        /// helper fn with bad name to check the dependency condition of a dependency and parse the dependency into a tuple of
-        /// name and version for further processing
-        fn process<D: ConditionCheckable + ParseDependency>(
-            d: &D,
-            conditional_data: &ConditionData<'_>,
-            dependency_type: DependencyType,
-        ) -> Result<(bool, PackageName, PackageVersionConstraint, DependencyType)> {
-            // Check whether the condition of the dependency matches our data
-            let take = d.check_condition(conditional_data)?;
-            let (name, version) = d.parse_as_name_and_version()?;
 
-            // (dependency check result, name of the dependency, version of the dependency)
-            Ok((take, name, version, dependency_type))
-        }
+fn build_dependencies_tree(
+    p: Package,
+    repo: &Repository,
+    conditional_data: &ConditionData<'_>,
+) -> Result<DependenciesNode, anyhow::Error> {
+    /// helper fn with bad name to check the dependency condition of a dependency and parse the dependency into a tuple of
+    /// name and version for further processing
+    fn process<D: ConditionCheckable + ParseDependency>(
+        d: &D,
+        conditional_data: &ConditionData<'_>,
+        dependency_type: DependencyType,
+    ) -> Result<(bool, PackageName, PackageVersionConstraint, DependencyType)> {
+        // Check whether the condition of the dependency matches our data
+        let take = d.check_condition(conditional_data)?;
+        let (name, version) = d.parse_as_name_and_version()?;
 
-        /// Helper fn to get the dependencies of a package
-        ///
-        /// This function helps getting the dependencies of a package as an iterator over
-        /// (Name, Version).
-        ///
-        /// It also filters out dependencies that do not match the `conditional_data` passed and
-        /// makes the dependencies unique over (name, version).
-        fn get_package_dependencies<'a>(
-            package: &'a Package,
-            conditional_data: &'a ConditionData<'_>,
-        ) -> impl Iterator<Item = Result<(PackageName, PackageVersionConstraint, DependencyType)>> + 'a {
-            package
-                .dependencies()
-                .build()
-                .iter()
-                .map(move |d| process(d, conditional_data, DependencyType::BUILDTIME))
-                .chain({
-                    package
-                        .dependencies()
-                        .runtime()
-                        .iter()
-                        .map(move |d| process(d, conditional_data, DependencyType::RUNTIME))
-                })
-                // Now filter out all dependencies where their condition did not match our
-                // `conditional_data`.
-                .filter(|res| match res {
-                    Ok((true, _, _, _)) => true,
-                    Ok((false, _, _, _)) => false,
-                    Err(_) => true,
-                })
-                // Map out the boolean from the condition, because we don't need that later on
-                .map(|res| res.map(|(_, name, vers, deptype)| (name, vers, deptype)))
-        }
+        // (dependency check result, name of the dependency, version of the dependency)
+        Ok((take, name, version, dependency_type))
+    }
 
-        let deps = get_package_dependencies(&p, conditional_data);
-        let mut d = Vec::new();
-        //print!("{:?}", deps);
-        for dep in deps {
-            println!("{:?}", dep);
-            let dep = dep.unwrap();
-            let pkgs = repo.find_with_version(&dep.0, &dep.1);
-            if pkgs.is_empty() {
-                panic!("dep not found");
-                //return Err(anyhow!(
-                //    "Dependency of {} {} not found: {} {}",
-                //    p.name(),
-                //    p.version(),
-                //    name,
-                //    constr
-                //));
+    /// Helper fn to get the dependencies of a package
+    ///
+    /// This function helps getting the dependencies of a package as an iterator over
+    /// (Name, Version).
+    ///
+    /// It also filters out dependencies that do not match the `conditional_data` passed and
+    /// makes the dependencies unique over (name, version).
+    fn get_package_dependencies<'a>(
+        package: &'a Package,
+        conditional_data: &'a ConditionData<'_>,
+    ) -> impl Iterator<Item = anyhow::Result<(PackageName, PackageVersionConstraint, DependencyType)>> + 'a
+    {
+        package
+            .dependencies()
+            .build()
+            .iter()
+            .map(move |d| process(d, conditional_data, DependencyType::BUILDTIME))
+            .chain({
+                package
+                    .dependencies()
+                    .runtime()
+                    .iter()
+                    .map(move |d| process(d, conditional_data, DependencyType::RUNTIME))
+            })
+            // Now filter out all dependencies where their condition did not match our
+            // `conditional_data`.
+            .filter(|res| match res {
+                Ok((true, _, _, _)) => true,
+                Ok((false, _, _, _)) => false,
+                Err(_) => true,
+            })
+            // Map out the boolean from the condition, because we don't need that later on
+            .map(|res| res.map(|(_, name, vers, deptype)| (name, vers, deptype)))
+    }
+
+    let mut d: Vec<(DependenciesNode, DependencyType)> = Vec::new();
+    let deps = get_package_dependencies(&p, conditional_data);
+    for dep in deps {
+        let dep = match dep {
+            Ok(d) => {
+                trace!("Found dependency {} {}", d.0, d.1);
+                d
             }
-            trace!("Found in repo: {:?}", pkgs);
-            assert!(pkgs.len() == 1);
-            let pkg = pkgs[0];
-            let subtree = build_dependencies_tree(pkg.clone(), repo, conditional_data);
-            //let tree = DependenciesNode {
-            //    name: dep.as_ref().unwrap().0.to_string(),
-            //    dependency_type: dep.unwrap().2,
-            //    dependencies: subtree,
-            //};
-            d.push((subtree, dep.2));
-        }
-        println!("{:?}", d.len());
-        let tree = DependenciesNode {
-            name: p.name().to_string(),
-            //dependency_type: DependencyType::BUILDTIME,
-            dependencies: d,
+            Err(e) => {
+                error!("Dependency not ok {}", e);
+                continue;
+            }
         };
-        //println!("{:?}", d);
-        println!("{:?}", tree);
-        println!("{:?}", tree.dependencies);
-        return tree;
+
+        let package_name = dep.0;
+        let package_version_constraint = dep.1;
+        let package_dependency_type = dep.2;
+
+        trace!(
+            "Searching for ({}, {}) in repo",
+            package_name,
+            package_version_constraint
+        );
+        let pkgs = repo.find_with_version(&package_name, &package_version_constraint);
+
+        let pkg = match pkgs.len() {
+            0 => {
+                error!(
+                    "Package not found in repo: ({}, {})",
+                    package_name, package_version_constraint
+                );
+                continue;
+            }
+            1 => {
+                trace!(
+                    "Found one package in repo for: ({}, {})",
+                    package_name,
+                    package_version_constraint
+                );
+                pkgs[0]
+            }
+            _ => {
+                trace!(
+                    "Found multiple packages in repo for ({}, {}), taking first one",
+                    package_name,
+                    package_version_constraint
+                );
+                pkgs[0]
+            }
+        };
+
+        let subtree = build_dependencies_tree(pkg.clone(), repo, conditional_data);
+        let subtree = match subtree {
+            Ok(s) => {
+                trace!("Subtree ok, {:?}", pkg);
+                s
+            }
+            Err(e) => {
+                error!("Failed to build subtree, {}", e);
+                continue;
+            }
+        };
+        d.push((subtree, package_dependency_type));
+    }
+
+    trace!("d.len: {:?}", d.len());
+    let tree = DependenciesNode {
+        name: p.name().to_string(),
+        dependencies: d,
+    };
+    trace!("tree: {:?}", tree);
+    trace!("tree.dependencies: {:?}", tree.dependencies);
+    return Ok(tree);
 }
 
 /// Implementation of the "tree_of" subcommand
@@ -201,7 +207,8 @@ pub async fn tree_of(matches: &ArgMatches, repo: Repository) -> Result<()> {
         env: &additional_env,
     };
 
-    let mut tree = repo.packages()
+    let tree = repo
+        .packages()
         .filter(|p| pname.as_ref().map(|n| p.name() == n).unwrap_or(true))
         .filter(|p| {
             pvers
@@ -211,15 +218,27 @@ pub async fn tree_of(matches: &ArgMatches, repo: Repository) -> Result<()> {
         })
         .map(|package| {
             let tree = build_dependencies_tree(package.clone(), &repo, &condition_data);
-            println!("{:?}", tree);
+            trace!("{:?}", tree);
             tree
         })
         .collect::<Vec<_>>();
-    //println!("{:?}", tree[0]);
-    print_dependencies_tree(tree.pop().unwrap(), 0, false);
+    let mut tree: Vec<DependenciesNode> = tree
+        .into_iter()
+        .filter_map(|tree| tree.ok())
+        .collect::<Vec<DependenciesNode>>();
+
+    let popped = tree.pop();
+    let popped = match popped {
+        Some(p) => {
+            trace!("Popped tree");
+            p
+        }
+        _ => {
+            trace!("Tree empty, nothing found");
+            return Ok(());
+        }
+    };
+
+    print_dependencies_tree(popped, 0, false);
     Ok(())
-       // .and_then_ok(|tree| {
-       //     print!("{:?}", tree);
-       // })
-       // .collect::<Result<()>>()
 }

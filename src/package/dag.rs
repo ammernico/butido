@@ -37,9 +37,6 @@ use crate::repository::Repository;
 pub struct Dag {
     #[getset(get = "pub")]
     dag: daggy::Dag<Package, i8>,
-
-    #[getset(get = "pub")]
-    root_idx: daggy::NodeIndex,
 }
 
 impl Dag {
@@ -195,7 +192,6 @@ impl Dag {
 
         Ok(Dag {
             dag: dag.map(|_, p: &&Package| -> Package { (*p).clone() }, |_, e| *e),
-            root_idx,
         })
     }
 
@@ -210,10 +206,6 @@ impl Dag {
             .node_indices()
             .filter_map(|idx| self.dag.graph().node_weight(idx))
             .collect()
-    }
-
-    pub fn display(&self) -> DagDisplay {
-        DagDisplay(self, self.root_idx)
     }
 }
 
