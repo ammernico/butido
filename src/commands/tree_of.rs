@@ -220,10 +220,9 @@ pub async fn tree_of(matches: &ArgMatches, repo: Repository) -> Result<()> {
             let tree = build_dependencies_tree(package.clone(), &repo, &condition_data);
             trace!("{:?}", tree);
             tree
-        })
-        .collect::<Vec<_>>();
+        });
+
     let mut tree: Vec<DependenciesNode> = tree
-        .into_iter()
         .filter_map(|tree| tree.ok())
         .collect::<Vec<DependenciesNode>>();
 
