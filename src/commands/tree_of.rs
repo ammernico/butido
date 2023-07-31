@@ -28,8 +28,8 @@ use crate::util::EnvironmentVariableName;
 
 #[derive(Debug, PartialEq)]
 enum DependencyType {
-    BUILDTIME,
-    RUNTIME,
+    Buildtime,
+    Runtime,
 }
 
 #[derive(Debug)]
@@ -44,7 +44,7 @@ fn print_dependencies_tree(node: DependenciesNode, level: usize, is_runtime_dep:
     let suffix = if is_runtime_dep { "*" } else { "" };
     println!("{ident}- {name}{suffix}");
     for (node, dep_type) in node.dependencies {
-        print_dependencies_tree(node, level + 1, dep_type == DependencyType::RUNTIME);
+        print_dependencies_tree(node, level + 1, dep_type == DependencyType::Runtime);
     }
 }
 
@@ -84,13 +84,13 @@ fn build_dependencies_tree(
             .dependencies()
             .build()
             .iter()
-            .map(move |d| process(d, conditional_data, DependencyType::BUILDTIME))
+            .map(move |d| process(d, conditional_data, DependencyType::Buildtime))
             .chain({
                 package
                     .dependencies()
                     .runtime()
                     .iter()
-                    .map(move |d| process(d, conditional_data, DependencyType::RUNTIME))
+                    .map(move |d| process(d, conditional_data, DependencyType::Runtime))
             })
             // Now filter out all dependencies where their condition did not match our
             // `conditional_data`.
@@ -175,7 +175,7 @@ fn build_dependencies_tree(
     };
     trace!("tree: {:?}", tree);
     trace!("tree.dependencies: {:?}", tree.dependencies);
-    return Ok(tree);
+    Ok(tree)
 }
 
 /// Implementation of the "tree_of" subcommand
