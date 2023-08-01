@@ -184,8 +184,19 @@ pub async fn tree_of(matches: &ArgMatches, repo: Repository) -> Result<()> {
         .get_one::<String>("package_name")
         .map(|s| s.to_owned())
         .map(PackageName::from);
-    let pvers = matches
-        .get_one::<String>("package_version")
+
+    let pvers = matches.get_one::<String>("package_version");
+    match pvers {
+        Some(v) => {
+            trace!("Called with version: {}", v);
+        }
+        _ => {
+            error!("Please specify a version of package with: packagename =version");
+            std::process::exit(1);
+        }
+    };
+
+    let pvers = pvers
         .map(|s| s.to_owned())
         .map(PackageVersionConstraint::try_from)
         .transpose()?;
