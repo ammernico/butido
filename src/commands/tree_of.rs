@@ -14,7 +14,7 @@ use std::convert::TryFrom;
 
 use anyhow::Result;
 use clap::ArgMatches;
-use tracing::{error, trace};
+use tracing::{error, debug};
 
 use crate::package::condition::ConditionCheckable;
 use crate::package::condition::ConditionData;
@@ -39,6 +39,7 @@ struct DependenciesNode {
 }
 
 fn print_dependencies_tree(node: DependenciesNode, level: usize, is_runtime_dep: bool) {
+    debug!("{:?};{:?};{:?}", node, level, is_runtime_dep);
     let ident = "  ".repeat(level);
     let name = node.name;
     let suffix = if is_runtime_dep { "*" } else { "" };
@@ -108,7 +109,7 @@ fn build_dependencies_tree(
     for dep in deps {
         let dep = match dep {
             Ok(d) => {
-                trace!("Found dependency {} {}", d.0, d.1);
+                debug!("Found dependency {} {}", d.0, d.1);
                 d
             }
             Err(e) => {
@@ -121,23 +122,23 @@ fn build_dependencies_tree(
         let package_version_constraint = dep.1;
         let package_dependency_type = dep.2;
 
-        trace!(
+        debug!(
             "Searching for ({}, {}) in repo",
             package_name,
             package_version_constraint
         );
-        let pkgs = repo.find_with_version(&package_name, &package_version_constraint);
 
+        let pkgs = repo.find_with_version(&package_name, &package_version_constraint);
         let pkg = match pkgs.len() {
             0 => {
-                error!(
+                debug!(
                     "Package not found in repo: ({}, {})",
                     package_name, package_version_constraint
                 );
                 continue;
             }
             1 => {
-                trace!(
+                debug!(
                     "Found one package in repo for: ({}, {})",
                     package_name,
                     package_version_constraint
@@ -145,7 +146,7 @@ fn build_dependencies_tree(
                 pkgs[0]
             }
             _ => {
-                trace!(
+                debug!(
                     "Found multiple packages in repo for ({}, {}), taking first one",
                     package_name,
                     package_version_constraint
@@ -155,9 +156,11 @@ fn build_dependencies_tree(
         };
 
         let subtree = build_dependencies_tree(pkg.clone(), repo, conditional_data);
+        debug!("{:?}", subtree);
         let subtree = match subtree {
             Ok(s) => {
-                trace!("Subtree ok, {:?}", pkg);
+                //debug!("Subtree ok, {:?}", subtree);
+                debug!("Subtree ok, {:?}", pkg);
                 s
             }
             Err(e) => {
@@ -168,13 +171,13 @@ fn build_dependencies_tree(
         d.push((subtree, package_dependency_type));
     }
 
-    trace!("d.len: {:?}", d.len());
+    debug!("d.len: {:?}", d.len());
     let tree = DependenciesNode {
         name: p.name().to_string(),
         dependencies: d,
     };
-    trace!("tree: {:?}", tree);
-    trace!("tree.dependencies: {:?}", tree.dependencies);
+    debug!("tree: {:?}", tree);
+    debug!("tree.dependencies: {:?}", tree.dependencies);
     Ok(tree)
 }
 
@@ -186,15 +189,15 @@ pub async fn tree_of(matches: &ArgMatches, repo: Repository) -> Result<()> {
         .map(PackageName::from);
 
     let pvers = matches.get_one::<String>("package_version");
-    match pvers {
-        Some(v) => {
-            trace!("Called with version: {}", v);
-        }
-        _ => {
-            error!("Please specify a version of package with: packagename =version");
-            std::process::exit(1);
-        }
-    };
+    //match pvers {
+    //    Some(v) => {
+    //        debug!("Called with version: {}", v);
+    //    }
+    //    _ => {
+    //        error!("Please specify a version of package with: packagename =version");
+    //        std::process::exit(1);
+    //    }
+    //};
 
     let pvers = pvers
         .map(|s| s.to_owned())
@@ -229,7 +232,7 @@ pub async fn tree_of(matches: &ArgMatches, repo: Repository) -> Result<()> {
         })
         .map(|package| {
             let tree = build_dependencies_tree(package.clone(), &repo, &condition_data);
-            trace!("{:?}", tree);
+            debug!("{:?}", tree);
             tree
         });
 
@@ -240,11 +243,11 @@ pub async fn tree_of(matches: &ArgMatches, repo: Repository) -> Result<()> {
     let popped = tree.pop();
     let popped = match popped {
         Some(p) => {
-            trace!("Popped tree");
+            debug!("Popped tree");
             p
         }
         _ => {
-            trace!("Tree empty, nothing found");
+            debug!("Tree empty, nothing found");
             return Ok(());
         }
     };
