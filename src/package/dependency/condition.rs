@@ -210,13 +210,13 @@ impl ConditionCheckable for crate::package::BuildDependency {
     }
 }
 
-impl ConditionCheckable for crate::package::Dependency {
+impl ConditionCheckable for crate::package::RunDependency {
     fn check_condition(&self, data: &ConditionData<'_>) -> Result<bool> {
         match self {
             // If the dependency is a simple one, e.g. "foo =1.2.3", there is no condition, so the
             // dependency has always to be used
-            crate::package::Dependency::Simple(_) => Ok(true),
-            crate::package::Dependency::Conditional { condition, .. } => condition.matches(data),
+            crate::package::RunDependency::Simple(_) => Ok(true),
+            crate::package::RunDependency::Conditional { condition, .. } => condition.matches(data),
         }
     }
 }

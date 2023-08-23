@@ -21,43 +21,43 @@ use crate::package::PackageVersionConstraint;
 /// A dependency that is packaged and is required during runtime
 #[derive(Serialize, Deserialize, Clone, Debug, Hash, Eq, PartialEq, Ord, PartialOrd)]
 #[serde(untagged)]
-pub enum Dependency {
+pub enum RunDependency {
     Simple(String),
     Conditional { name: String, condition: Condition },
 }
 
 #[cfg(test)]
-impl Dependency {
+impl RunDependency {
     pub fn new_conditional(name: String, condition: Condition) -> Self {
-        Dependency::Conditional { name, condition }
+        RunDependency::Conditional { name, condition }
     }
 }
 
-impl AsRef<str> for Dependency {
+impl AsRef<str> for RunDependency {
     fn as_ref(&self) -> &str {
         match self {
-            Dependency::Simple(name) => name,
-            Dependency::Conditional { name, .. } => name,
+            RunDependency::Simple(name) => name,
+            RunDependency::Conditional { name, .. } => name,
         }
     }
 }
 
-impl StringEqual for Dependency {
+impl StringEqual for RunDependency {
     fn str_equal(&self, s: &str) -> bool {
         match self {
-            Dependency::Simple(name) => name == s,
-            Dependency::Conditional { name, .. } => name == s,
+            RunDependency::Simple(name) => name == s,
+            RunDependency::Conditional { name, .. } => name == s,
         }
     }
 }
 
-impl From<String> for Dependency {
-    fn from(s: String) -> Dependency {
-        Dependency::Simple(s)
+impl From<String> for RunDependency {
+    fn from(s: String) -> RunDependency {
+        RunDependency::Simple(s)
     }
 }
 
-impl ParseDependency for Dependency {
+impl ParseDependency for RunDependency {
     fn parse_as_name_and_version(&self) -> Result<(PackageName, PackageVersionConstraint)> {
         crate::package::dependency::parse_package_dependency_string_into_name_and_version(
             self.as_ref(),
@@ -73,7 +73,7 @@ mod tests {
     #[derive(serde::Deserialize)]
     #[allow(unused)]
     pub struct TestSetting {
-        setting: Dependency,
+        setting: RunDependency,
     }
 
     #[test]
@@ -82,7 +82,7 @@ mod tests {
             toml::from_str(r#"setting = "foo""#).expect("Parsing TestSetting failed");
 
         match s.setting {
-            Dependency::Simple(name) => assert_eq!(name, "foo", "Expected 'foo', got {name}"),
+            RunDependency::Simple(name) => assert_eq!(name, "foo", "Expected 'foo', got {name}"),
             other => panic!("Unexpected deserialization to other variant: {other:?}"),
         }
     }
@@ -93,7 +93,7 @@ mod tests {
             toml::from_str(r#"setting = { name = "foo", condition = { in_image = "bar"} }"#)
                 .expect("Parsing TestSetting failed");
         match s.setting {
-            Dependency::Conditional { name, condition } => {
+            RunDependency::Conditional { name, condition } => {
                 assert_eq!(name, "foo", "Expected 'foo', got {name}");
                 assert_eq!(*condition.has_env(), None);
                 assert_eq!(*condition.env_eq(), None);
@@ -118,7 +118,7 @@ mod tests {
         let s: TestSetting = toml::from_str(pretty).expect("Parsing TestSetting failed");
 
         match s.setting {
-            Dependency::Conditional { name, condition } => {
+            RunDependency::Conditional { name, condition } => {
                 assert_eq!(name, "foo", "Expected 'foo', got {name}");
                 assert_eq!(*condition.has_env(), None);
                 assert_eq!(*condition.env_eq(), None);
@@ -134,7 +134,7 @@ mod tests {
     #[derive(serde::Serialize, serde::Deserialize)]
     #[allow(unused)]
     pub struct TestSettings {
-        settings: Vec<Dependency>,
+        settings: Vec<RunDependency>,
     }
 
     #[test]
@@ -143,7 +143,7 @@ mod tests {
             toml::from_str(r#"settings = [{ name = "foo", condition = { in_image = "bar"} }]"#)
                 .expect("Parsing TestSetting failed");
         match s.settings.get(0).expect("Has not one dependency") {
-            Dependency::Conditional { name, condition } => {
+            RunDependency::Conditional { name, condition } => {
                 assert_eq!(name, "foo", "Expected 'foo', got {name}");
                 assert_eq!(*condition.has_env(), None);
                 assert_eq!(*condition.env_eq(), None);
@@ -167,7 +167,7 @@ mod tests {
         let s: TestSettings = toml::from_str(pretty).expect("Parsing TestSetting failed");
 
         match s.settings.get(0).expect("Has not one dependency") {
-            Dependency::Conditional { name, condition } => {
+            RunDependency::Conditional { name, condition } => {
                 assert_eq!(name, "foo", "Expected 'foo', got {name}");
                 assert_eq!(*condition.has_env(), None);
                 assert_eq!(*condition.env_eq(), None);
@@ -191,7 +191,7 @@ mod tests {
         let s: TestSettings = toml::from_str(pretty).expect("Parsing TestSetting failed");
 
         match s.settings.get(0).expect("Has not one dependency") {
-            Dependency::Conditional { name, condition } => {
+            RunDependency::Conditional { name, condition } => {
                 assert_eq!(name, "foo", "Expected 'foo', got {name}");
                 assert_eq!(*condition.has_env(), None);
                 assert_eq!(*condition.env_eq(), None);
@@ -219,7 +219,7 @@ mod tests {
         let s: TestSettings = toml::from_str(pretty).expect("Parsing TestSetting failed");
 
         match s.settings.get(0).expect("Has not one dependencies") {
-            Dependency::Conditional { name, condition } => {
+            RunDependency::Conditional { name, condition } => {
                 assert_eq!(name, "foo", "Expected 'foo', got {name}");
                 assert_eq!(*condition.has_env(), None);
                 assert_eq!(*condition.env_eq(), None);
@@ -232,7 +232,7 @@ mod tests {
         }
 
         match s.settings.get(1).expect("Has not two dependencies") {
-            Dependency::Conditional { name, condition } => {
+            RunDependency::Conditional { name, condition } => {
                 assert_eq!(name, "baz", "Expected 'baz', got {name}");
                 assert_eq!(*condition.has_env(), None);
                 assert_eq!(*condition.env_eq(), None);

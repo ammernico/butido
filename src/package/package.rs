@@ -245,7 +245,7 @@ pub struct Dependencies {
     build: Vec<BuildDependency>,
 
     #[getset(get = "pub")]
-    runtime: Vec<Dependency>,
+    runtime: Vec<RunDependency>,
 }
 
 #[cfg(test)]
@@ -257,11 +257,11 @@ impl Dependencies {
         }
     }
 
-    pub fn with_runtime_dependency(runtime_dependency: Dependency) -> Self {
+    pub fn with_runtime_dependency(runtime_dependency: RunDependency) -> Self {
         Dependencies::with_runtime_dependencies(vec![runtime_dependency])
     }
 
-    pub fn with_runtime_dependencies(runtime_dependencies: Vec<Dependency>) -> Self {
+    pub fn with_runtime_dependencies(runtime_dependencies: Vec<RunDependency>) -> Self {
         Dependencies {
             build: vec![],
             runtime: runtime_dependencies,
