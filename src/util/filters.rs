@@ -97,7 +97,7 @@ mod tests {
     use crate::package::tests::pname;
     use crate::package::tests::pversion;
     use crate::package::Dependencies;
-    use crate::package::Dependency;
+    use crate::package::RunDependency;
     use crate::repository::Repository;
 
     fn setup_logging() {
@@ -142,7 +142,7 @@ mod tests {
             let name = "a";
             let vers = "1";
             let mut pack = package(name, vers, "https://rust-lang.org", "123");
-            pack.set_dependencies(Dependencies::with_runtime_dependency(Dependency::from(
+            pack.set_dependencies(Dependencies::with_runtime_dependency(RunDependency::from(
                 String::from("foo"),
             )));
             btree.insert((pname(name), pversion(vers)), pack);
@@ -172,7 +172,7 @@ mod tests {
             let name = "a";
             let vers = "1";
             let mut pack = package(name, vers, "https://rust-lang.org", "123");
-            pack.set_dependencies(Dependencies::with_runtime_dependency(Dependency::from(
+            pack.set_dependencies(Dependencies::with_runtime_dependency(RunDependency::from(
                 String::from("foo =2.0"),
             )));
             btree.insert((pname(name), pversion(vers)), pack);
@@ -195,7 +195,7 @@ mod tests {
         assert_eq!(*p.name(), pname("a"));
         assert_eq!(
             *p.dependencies().runtime(),
-            vec![Dependency::from(String::from("foo =2.0"))]
+            vec![RunDependency::from(String::from("foo =2.0"))]
         );
         assert!(p.dependencies().build().is_empty());
     }
@@ -208,7 +208,7 @@ mod tests {
             let name = "a";
             let vers = "1";
             let mut pack = package(name, vers, "https://rust-lang.org", "123");
-            pack.set_dependencies(Dependencies::with_runtime_dependency(Dependency::from(
+            pack.set_dependencies(Dependencies::with_runtime_dependency(RunDependency::from(
                 String::from("bar =1337"),
             )));
             btree.insert((pname(name), pversion(vers)), pack);
@@ -237,7 +237,7 @@ mod tests {
             let name = "a";
             let vers = "1";
             let mut pack = package(name, vers, "https://rust-lang.org", "123");
-            pack.set_dependencies(Dependencies::with_runtime_dependency(Dependency::from(
+            pack.set_dependencies(Dependencies::with_runtime_dependency(RunDependency::from(
                 String::from("bar =1.0"),
             )));
             btree.insert((pname(name), pversion(vers)), pack);
@@ -269,8 +269,8 @@ mod tests {
             let mut pack = package(name, vers, "https://rust-lang.org", "123");
             pack.set_dependencies({
                 Dependencies::with_runtime_dependencies(vec![
-                    Dependency::from(String::from("foo =1")),
-                    Dependency::from(String::from("bar =1")),
+                    RunDependency::from(String::from("foo =1")),
+                    RunDependency::from(String::from("bar =1")),
                 ])
             });
             btree.insert((pname(name), pversion(vers)), pack);
@@ -294,8 +294,8 @@ mod tests {
         assert_eq!(
             *p.dependencies().runtime(),
             vec![
-                Dependency::from(String::from("foo =1")),
-                Dependency::from(String::from("bar =1"))
+                RunDependency::from(String::from("foo =1")),
+                RunDependency::from(String::from("bar =1"))
             ]
         );
         assert!(p.dependencies().build().is_empty());
@@ -311,8 +311,8 @@ mod tests {
             let mut pack = package(name, vers, "https://rust-lang.org", "123");
             pack.set_dependencies({
                 Dependencies::with_runtime_dependencies(vec![
-                    Dependency::from(String::from("foo =2")),
-                    Dependency::from(String::from("bar =3")),
+                    RunDependency::from(String::from("foo =2")),
+                    RunDependency::from(String::from("bar =3")),
                 ])
             });
             btree.insert((pname(name), pversion(vers)), pack);
@@ -324,8 +324,8 @@ mod tests {
             let mut pack = package(name, vers, "https://rust-lang.org", "123");
             pack.set_dependencies({
                 Dependencies::with_runtime_dependencies(vec![
-                    Dependency::from(String::from("foo =4")),
-                    Dependency::from(String::from("baz =5")),
+                    RunDependency::from(String::from("foo =4")),
+                    RunDependency::from(String::from("baz =5")),
                 ])
             });
             btree.insert((pname(name), pversion(vers)), pack);
@@ -351,8 +351,8 @@ mod tests {
             assert_eq!(
                 *p.dependencies().runtime(),
                 vec![
-                    Dependency::from(String::from("foo =2")),
-                    Dependency::from(String::from("bar =3"))
+                    RunDependency::from(String::from("foo =2")),
+                    RunDependency::from(String::from("bar =3"))
                 ]
             );
             assert!(p.dependencies().build().is_empty());
@@ -364,8 +364,8 @@ mod tests {
             assert_eq!(
                 *p.dependencies().runtime(),
                 vec![
-                    Dependency::from(String::from("foo =4")),
-                    Dependency::from(String::from("baz =5"))
+                    RunDependency::from(String::from("foo =4")),
+                    RunDependency::from(String::from("baz =5"))
                 ]
             );
             assert!(p.dependencies().build().is_empty());

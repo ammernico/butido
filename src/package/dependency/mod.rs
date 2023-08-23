@@ -94,7 +94,7 @@ mod tests {
     #[test]
     fn test_dependency_conversion_1() {
         let s = "vim =8.2";
-        let d = Dependency::from(String::from(s));
+        let d = RunDependency::from(String::from(s));
 
         let (n, c) = d.parse_as_name_and_version().unwrap();
 
@@ -108,7 +108,7 @@ mod tests {
     #[test]
     fn test_dependency_conversion_2() {
         let s = "gtk15 =1b";
-        let d = Dependency::from(String::from(s));
+        let d = RunDependency::from(String::from(s));
 
         let (n, c) = d.parse_as_name_and_version().unwrap();
 
@@ -122,7 +122,7 @@ mod tests {
     #[test]
     fn test_dependency_string_with_punctuation() {
         let s = "foo-bar1.2.3 =0.123";
-        let d = Dependency::from(String::from(s));
+        let d = RunDependency::from(String::from(s));
 
         let (n, c) = d.parse_as_name_and_version().unwrap();
 

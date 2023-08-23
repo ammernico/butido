@@ -256,7 +256,7 @@ mod tests {
     use crate::package::tests::pname;
     use crate::package::tests::pversion;
     use crate::package::Dependencies;
-    use crate::package::Dependency;
+    use crate::package::RunDependency;
     use crate::util::docker::ImageName;
 
     use indicatif::ProgressBar;
@@ -306,7 +306,7 @@ mod tests {
         }
 
         {
-            let d = Dependency::from(String::from("b =2"));
+            let d = RunDependency::from(String::from("b =2"));
             let ds = Dependencies::with_runtime_dependency(d);
             p1.set_dependencies(ds);
         }
@@ -350,8 +350,8 @@ mod tests {
             let vers = "1";
             let mut pack = package(name, vers, "https://rust-lang.org", "123");
             {
-                let d1 = Dependency::from(String::from("p2 =2"));
-                let d2 = Dependency::from(String::from("p4 =4"));
+                let d1 = RunDependency::from(String::from("p2 =2"));
+                let d2 = RunDependency::from(String::from("p4 =4"));
                 let ds = Dependencies::with_runtime_dependencies(vec![d1, d2]);
                 pack.set_dependencies(ds);
             }
@@ -364,7 +364,7 @@ mod tests {
             let vers = "2";
             let mut pack = package(name, vers, "https://rust-lang.org", "124");
             {
-                let d1 = Dependency::from(String::from("p3 =3"));
+                let d1 = RunDependency::from(String::from("p3 =3"));
                 let ds = Dependencies::with_runtime_dependencies(vec![d1]);
                 pack.set_dependencies(ds);
             }
@@ -383,8 +383,8 @@ mod tests {
             let vers = "4";
             let mut pack = package(name, vers, "https://rust-lang.org", "125");
             {
-                let d1 = Dependency::from(String::from("p5 =5"));
-                let d2 = Dependency::from(String::from("p6 =66.6.6"));
+                let d1 = RunDependency::from(String::from("p5 =5"));
+                let d2 = RunDependency::from(String::from("p6 =66.6.6"));
                 let ds = Dependencies::with_runtime_dependencies(vec![d1, d2]);
                 pack.set_dependencies(ds);
             }
@@ -453,8 +453,8 @@ mod tests {
             let vers = "1";
             let mut pack = package(name, vers, "https://rust-lang.org", "123");
             {
-                let d1 = Dependency::from(String::from("p2 =2"));
-                let d2 = Dependency::from(String::from("p4 =4"));
+                let d1 = RunDependency::from(String::from("p2 =2"));
+                let d2 = RunDependency::from(String::from("p4 =4"));
                 let ds = Dependencies::with_runtime_dependencies(vec![d1, d2]);
                 pack.set_dependencies(ds);
             }
@@ -467,8 +467,8 @@ mod tests {
             let vers = "2";
             let mut pack = package(name, vers, "https://rust-lang.org", "123");
             {
-                let d1 = Dependency::from(String::from("p2 =2"));
-                let d2 = Dependency::from(String::from("p4 =5"));
+                let d1 = RunDependency::from(String::from("p2 =2"));
+                let d2 = RunDependency::from(String::from("p4 =5"));
                 let ds = Dependencies::with_runtime_dependencies(vec![d1, d2]);
                 pack.set_dependencies(ds);
             }
@@ -480,7 +480,7 @@ mod tests {
             let vers = "2";
             let mut pack = package(name, vers, "https://rust-lang.org", "124");
             {
-                let d1 = Dependency::from(String::from("p3 =3"));
+                let d1 = RunDependency::from(String::from("p3 =3"));
                 let ds = Dependencies::with_runtime_dependencies(vec![d1]);
                 pack.set_dependencies(ds);
             }
@@ -513,8 +513,8 @@ mod tests {
             let vers = "4";
             let mut pack = package(name, vers, "https://rust-lang.org", "125");
             {
-                let d1 = Dependency::from(String::from("p5 =5"));
-                let d2 = Dependency::from(String::from("p6 =66.6.6"));
+                let d1 = RunDependency::from(String::from("p5 =5"));
+                let d2 = RunDependency::from(String::from("p6 =66.6.6"));
                 let ds = Dependencies::with_runtime_dependencies(vec![d1, d2]);
                 pack.set_dependencies(ds);
             }
@@ -526,8 +526,8 @@ mod tests {
             let vers = "5";
             let mut pack = package(name, vers, "https://rust-lang.org", "125");
             {
-                let d1 = Dependency::from(String::from("p5 =5"));
-                let d2 = Dependency::from(String::from("p6 =66.6.8"));
+                let d1 = RunDependency::from(String::from("p5 =5"));
+                let d2 = RunDependency::from(String::from("p6 =66.6.8"));
                 let ds = Dependencies::with_runtime_dependencies(vec![d1, d2]);
                 pack.set_dependencies(ds);
             }
@@ -600,8 +600,8 @@ mod tests {
             let vers = "1";
             let mut pack = package(name, vers, "https://rust-lang.org", "123");
             {
-                let d1 = Dependency::from(String::from("p2 =2"));
-                let d2 = Dependency::from(String::from("p4 =4"));
+                let d1 = RunDependency::from(String::from("p2 =2"));
+                let d2 = RunDependency::from(String::from("p4 =4"));
                 let ds = Dependencies::with_runtime_dependencies(vec![d1, d2]);
                 pack.set_dependencies(ds);
             }
@@ -614,8 +614,8 @@ mod tests {
             let vers = "2";
             let mut pack = package(name, vers, "https://rust-lang.org", "123");
             {
-                let d1 = Dependency::from(String::from("p2 =2"));
-                let d2 = Dependency::from(String::from("p4 =5"));
+                let d1 = RunDependency::from(String::from("p2 =2"));
+                let d2 = RunDependency::from(String::from("p4 =5"));
                 let ds = Dependencies::with_runtime_dependencies(vec![d1, d2]);
                 pack.set_dependencies(ds);
             }
@@ -627,7 +627,7 @@ mod tests {
             let vers = "2";
             let mut pack = package(name, vers, "https://rust-lang.org", "124");
             {
-                let d1 = Dependency::from(String::from("p3 =3"));
+                let d1 = RunDependency::from(String::from("p3 =3"));
                 let ds = Dependencies::with_runtime_dependencies(vec![d1]);
                 pack.set_dependencies(ds);
             }
@@ -660,7 +660,7 @@ mod tests {
             let vers = "4";
             let mut pack = package(name, vers, "https://rust-lang.org", "125");
             {
-                let d1 = Dependency::from(String::from("p3 =3"));
+                let d1 = RunDependency::from(String::from("p3 =3"));
                 let ds = Dependencies::with_runtime_dependencies(vec![d1]);
                 pack.set_dependencies(ds);
             }
@@ -707,7 +707,7 @@ mod tests {
         }
 
         {
-            let d = Dependency::new_conditional(String::from("b =2"), cond);
+            let d = RunDependency::new_conditional(String::from("b =2"), cond);
             let ds = Dependencies::with_runtime_dependency(d);
             p1.set_dependencies(ds);
         }
