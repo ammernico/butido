@@ -35,6 +35,7 @@ enum DependencyType {
 #[derive(Debug)]
 struct DependenciesNode {
     name: String,
+    version: String,
     dependencies: Vec<(DependenciesNode, DependencyType)>,
 }
 
@@ -42,8 +43,9 @@ fn print_dependencies_tree(node: DependenciesNode, level: usize, is_runtime_dep:
     debug!("{:?};{:?};{:?}", node, level, is_runtime_dep);
     let ident = "  ".repeat(level);
     let name = node.name;
+    let version = node.version;
     let suffix = if is_runtime_dep { "*" } else { "" };
-    println!("{ident}- {name}{suffix}");
+    println!("{ident}- {name}{suffix}  {version}");
     for (node, dep_type) in node.dependencies {
         print_dependencies_tree(node, level + 1, dep_type == DependencyType::Runtime);
     }
@@ -174,6 +176,7 @@ fn build_dependencies_tree(
     debug!("d.len: {:?}", d.len());
     let tree = DependenciesNode {
         name: p.name().to_string(),
+        version: p.version().to_string(),
         dependencies: d,
     };
     debug!("tree: {:?}", tree);
@@ -229,29 +232,36 @@ pub async fn tree_of(matches: &ArgMatches, repo: Repository) -> Result<()> {
                 .as_ref()
                 .map(|v| v.matches(p.version()))
                 .unwrap_or(true)
-        })
+        });
+
+    let tree: Vec<Result<DependenciesNode, anyhow::Error>> = tree
         .map(|package| {
             let tree = build_dependencies_tree(package.clone(), &repo, &condition_data);
             debug!("{:?}", tree);
             tree
-        });
+        }).collect();
 
-    let mut tree: Vec<DependenciesNode> = tree
+    let tree: Vec<DependenciesNode> = tree
+        .into_iter()
         .filter_map(|tree| tree.ok())
         .collect::<Vec<DependenciesNode>>();
 
-    let popped = tree.pop();
-    let popped = match popped {
-        Some(p) => {
-            debug!("Popped tree");
-            p
-        }
-        _ => {
-            debug!("Tree empty, nothing found");
-            return Ok(());
-        }
+    for p in tree {
+        //// TODO: ask why?
+        //let popped = tree.pop();
+        //let popped = match popped {
+        //    Some(p) => {
+        //        debug!("Popped tree");
+        //        p
+        //    }
+        //    _ => {
+        //        debug!("Tree empty, nothing found");
+        //        return Ok(());
+        //    }
+        //};
+
+        print_dependencies_tree(p, 0, false);
     };
 
-    print_dependencies_tree(popped, 0, false);
     Ok(())
 }
