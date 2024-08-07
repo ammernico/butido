@@ -8,7 +8,10 @@
 // SPDX-License-Identifier: EPL-2.0
 //
 
+use std::collections::HashSet;
 use std::concat;
+use std::fmt;
+use std::fmt::Display;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -16,18 +19,24 @@ use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Error;
 use anyhow::Result;
+use ascii_table::{Align, AsciiTable};
 use clap::ArgMatches;
 use futures::stream::{FuturesUnordered, StreamExt};
 use regex::Regex;
 use tokio::io::AsyncWriteExt;
 use tokio::sync::{Mutex, Semaphore};
-use tracing::{info, trace, warn};
+use tracing::{debug, error, info, trace, warn};
 
-use crate::config::*;
-use crate::package::Package;
+use crate::config::Configuration;
+use crate::package::condition::ConditionData;
+use crate::package::Dag;
 use crate::package::PackageName;
 use crate::package::PackageVersionConstraint;
 use crate::repository::Repository;
+use crate::util::docker::ImageNameLookup;
+use crate::util::EnvironmentVariableName;
+
+use crate::package::Package;
 use crate::source::*;
 use crate::util::progress::ProgressBars;
 
@@ -40,6 +49,17 @@ enum DownloadResult {
     Skipped,
     Succeeded,
     MarkedManual,
+}
+
+impl fmt::Display for DownloadResult {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            DownloadResult::Forced => write!(f, "forced"),
+            DownloadResult::Skipped => write!(f, "skipped"),
+            DownloadResult::Succeeded => write!(f, "succeeded"),
+            DownloadResult::MarkedManual => write!(f, "marked manual"),
+        }
+    }
 }
 
 /// A wrapper around the indicatif::ProgressBar
@@ -270,6 +290,7 @@ pub async fn download(
     progressbars: ProgressBars,
 ) -> Result<()> {
     let force = matches.get_flag("force");
+    let recursive = matches.get_flag("recursive");
     let timeout = matches.get_one::<u64>("timeout").copied();
     let cache = PathBuf::from(config.source_cache_root());
     let sc = SourceCache::new(cache);
@@ -294,9 +315,45 @@ pub async fn download(
         NUMBER_OF_MAX_CONCURRENT_DOWNLOADS,
     ));
 
-    let r = find_packages(&repo, pname, pvers, matching_regexp)?;
+    let found_packages = find_packages(&repo, pname, pvers, matching_regexp)?;
 
-    let r: Vec<(SourceEntry, Result<DownloadResult>)> = r
+    let packages_to_download: HashSet<Package> = match recursive {
+        true => {
+            debug!("Finding package dependencies recursively");
+
+            let image_name_lookup = ImageNameLookup::create(config.docker().images())?;
+            let image_name = matches
+                .get_one::<String>("image")
+                .map(|s| image_name_lookup.expand(s))
+                .transpose()?;
+
+            let additional_env = matches
+                .get_many::<String>("env")
+                .unwrap_or_default()
+                .map(AsRef::as_ref)
+                .map(crate::util::env::parse_to_env)
+                .collect::<Result<Vec<(EnvironmentVariableName, String)>>>()?;
+
+            let condition_data = ConditionData {
+                image_name: image_name.as_ref(),
+                env: &additional_env,
+            };
+
+            let dependencies: Vec<Package> = found_packages
+                .iter()
+                .flat_map(|package| {
+                    Dag::for_root_package((*package).clone(), &repo, None, &condition_data)
+                        .map(|d| d.dag().graph().node_weights().cloned().collect::<Vec<_>>())
+                        .unwrap_or_else(|_| Vec::new())
+                })
+                .collect();
+
+            HashSet::from_iter(dependencies)
+        }
+        false => HashSet::from_iter(found_packages.into_iter().cloned()),
+    };
+
+    let r: Vec<(SourceEntry, Result<DownloadResult>)> = packages_to_download
         .iter()
         .flat_map(|p| {
             sc.sources_for(p).into_iter().map(|source| {
@@ -313,6 +370,34 @@ pub async fn download(
         .collect::<FuturesUnordered<_>>()
         .collect()
         .await;
+
+    let mut ascii_table = AsciiTable::default();
+    ascii_table
+        .column(0)
+        .set_header("Source")
+        .set_align(Align::Left);
+    ascii_table.column(1).set_header("").set_align(Align::Left);
+
+    let data: Vec<Vec<&dyn Display>> = r
+        .iter()
+        .filter_map(|v| {
+            if v.1.is_ok() {
+                let result = v.1.as_ref().unwrap() as &dyn Display;
+                let row: Vec<&dyn Display> = vec![v.0.package_name(), result];
+                Some(row)
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    ascii_table.print(data);
+
+    for p in r {
+        if p.1.is_err() {
+            error!("{}: {:?}", p.0.package_name(), p.1);
+        }
+    }
 
     super::verify(matches, config, repo, progressbars).await?;
 

@@ -14,6 +14,7 @@ use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Error;
 use anyhow::Result;
+use getset::Getters;
 use tracing::trace;
 use url::Url;
 
@@ -37,9 +38,10 @@ impl SourceCache {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Getters)]
 pub struct SourceEntry {
     cache_root: PathBuf,
+    #[getset(get = "pub")]
     package_name: PackageName,
     package_version: PackageVersion,
     package_source_name: String,
