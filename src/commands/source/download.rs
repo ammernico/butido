@@ -18,7 +18,7 @@ use anyhow::Error;
 use anyhow::Result;
 use clap::ArgMatches;
 use tokio::io::AsyncWriteExt;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, Semaphore};
 use tokio_stream::StreamExt;
 use tracing::{info, trace, warn};
 
@@ -197,6 +197,51 @@ async fn perform_download(
     file.flush().await.map_err(Error::from).map(|_| ())
 }
 
+async fn download_source_entry(
+    source: SourceEntry,
+    download_sema: Arc<Semaphore>,
+    progressbar: Arc<Mutex<ProgressWrapper>>,
+    force: bool,
+    timeout: Option<u64>,
+) -> Result<DownloadResult, anyhow::Error> {
+    let source_path_exists = source.path().exists();
+    if !source_path_exists && source.download_manually() {
+        return Err(anyhow!(
+            "Cannot download source that is marked for manual download"
+        ))
+        .context(anyhow!("Creating source: {}", source.path().display()))
+        .context(anyhow!("Downloading source: {}", source.url()))
+        .map_err(Error::from);
+    }
+
+    if source_path_exists && !force {
+        info!("Source already exists: {}", source.path().display());
+        Ok(DownloadResult::Skipped)
+    } else {
+        let mut download_result: Option<DownloadResult> = None;
+
+        if source_path_exists
+        /* && force is implied by 'if' above*/
+        {
+            source.remove_file().await?;
+            download_result = Some(DownloadResult::Forced)
+        }
+
+        progressbar.lock().await.inc_download_count().await;
+        {
+            let permit = download_sema.acquire_owned().await?;
+            perform_download(&source, progressbar.clone(), timeout).await?;
+            drop(permit);
+
+            if download_result.is_none() {
+                download_result = Some(DownloadResult::Succeeded)
+            }
+        }
+        progressbar.lock().await.finish_one_download().await;
+        Ok(download_result.unwrap())
+    }
+}
+
 // Implementation of the 'source download' subcommand
 pub async fn download(
     matches: &ArgMatches,
@@ -266,34 +311,7 @@ pub async fn download(
                 let download_sema = download_sema.clone();
                 let progressbar = progressbar.clone();
                 async move {
-                    let source_path_exists = source.path().exists();
-                    if !source_path_exists && source.download_manually() {
-                        return Err(anyhow!(
-                            "Cannot download source that is marked for manual download"
-                        ))
-                        .context(anyhow!("Creating source: {}", source.path().display()))
-                        .context(anyhow!("Downloading source: {}", source.url()))
-                        .map_err(Error::from);
-                    }
-
-                    if source_path_exists && !force {
-                        Err(anyhow!("Source exists: {}", source.path().display()))
-                    } else {
-                        if source_path_exists
-                        /* && force is implied by 'if' above*/
-                        {
-                            source.remove_file().await?;
-                        }
-
-                        progressbar.lock().await.inc_download_count().await;
-                        {
-                            let permit = download_sema.acquire_owned().await?;
-                            perform_download(&source, progressbar.clone(), timeout).await?;
-                            drop(permit);
-                        }
-                        progressbar.lock().await.finish_one_download().await;
-                        Ok(())
-                    }
+                    download_source_entry(source, download_sema, progressbar, force, timeout).await
                 }
             })
         })
