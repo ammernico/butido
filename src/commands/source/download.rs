@@ -17,12 +17,14 @@ use anyhow::Context;
 use anyhow::Error;
 use anyhow::Result;
 use clap::ArgMatches;
+use futures::stream::{FuturesUnordered, StreamExt};
+use regex::Regex;
 use tokio::io::AsyncWriteExt;
 use tokio::sync::{Mutex, Semaphore};
-use tokio_stream::StreamExt;
 use tracing::{info, trace, warn};
 
 use crate::config::*;
+use crate::package::Package;
 use crate::package::PackageName;
 use crate::package::PackageVersionConstraint;
 use crate::repository::Repository;
@@ -242,6 +244,38 @@ async fn download_source_entry(
     }
 }
 
+fn find_packages(
+    repo: &Repository,
+    pname: Option<PackageName>,
+    pvers: Option<PackageVersionConstraint>,
+    matching_regexp: Option<Regex>,
+) -> Result<Vec<&Package>, anyhow::Error> {
+    let packages: Vec<&Package> = repo.packages()
+        .filter(|p| {
+            match (pname.as_ref(), pvers.as_ref(), matching_regexp.as_ref()) {
+                (None, None, None) => true,
+                (Some(pname), None, None) => p.name() == pname,
+                (Some(pname), Some(vers), None) => p.name() == pname && vers.matches(p.version()),
+                (None, None, Some(regex)) => regex.is_match(p.name()),
+                (_, _, _) => {
+                    panic!("This should not be possible, either we select packages by name and (optionally) version, or by regex.")
+                },
+            }
+        })
+        .collect();
+
+    if packages.is_empty() {
+        return match (pname, pvers, matching_regexp) {
+            (Some(pname), None, None) => Err(anyhow!("{} not found", pname)),
+            (Some(pname), Some(vers), None) => Err(anyhow!("{} {} not found", pname, vers)),
+            (None, None, Some(regex)) => Err(anyhow!("{} regex not found", regex)),
+            (_, _, _) => panic!("This should not be possible, either we select packages by name and (optionally) version, or by regex."),
+        };
+    }
+
+    Ok(packages)
+}
+
 // Implementation of the 'source download' subcommand
 pub async fn download(
     matches: &ArgMatches,
@@ -274,38 +308,10 @@ pub async fn download(
         NUMBER_OF_MAX_CONCURRENT_DOWNLOADS,
     ));
 
-    let mut r = repo.packages()
-        .filter(|p| {
-            match (pname.as_ref(), pvers.as_ref(), matching_regexp.as_ref()) {
-                (None, None, None)              => true,
-                (Some(pname), None, None)       => p.name() == pname,
-                (Some(pname), Some(vers), None) => p.name() == pname && vers.matches(p.version()),
-                (None, None, Some(regex))       => regex.is_match(p.name()),
+    let r = find_packages(&repo, pname, pvers, matching_regexp)?;
 
-                (_, _, _) => {
-                    panic!("This should not be possible, either we select packages by name and (optionally) version, or by regex.")
-                },
-            }
-        }).peekable();
-
-    // check if the iterator is empty
-    if r.peek().is_none() {
-        let pname = matches.get_one::<String>("package_name");
-        let pvers = matches.get_one::<String>("package_version");
-        let matching_regexp = matches.get_one::<String>("matching");
-
-        match (pname, pvers, matching_regexp) {
-            (Some(pname), None, None) => return Err(anyhow!("{} not found", pname)),
-            (Some(pname), Some(vers), None) => return Err(anyhow!("{} {} not found", pname, vers)),
-            (None, None, Some(regex)) => return Err(anyhow!("{} regex not found", regex)),
-
-            (_, _, _) => {
-                panic!("This should not be possible, either we select packages by name and (optionally) version, or by regex.")
-            }
-        }
-    }
-
-    let r = r
+    let r: Vec<Result<DownloadResult>> = r
+        .iter()
         .flat_map(|p| {
             sc.sources_for(p).into_iter().map(|source| {
                 let download_sema = download_sema.clone();
@@ -315,18 +321,9 @@ pub async fn download(
                 }
             })
         })
-        .collect::<futures::stream::FuturesUnordered<_>>()
-        .collect::<Vec<Result<()>>>()
-        .await
-        .into_iter()
-        .collect::<Result<()>>();
-
-    if r.is_err() {
-        progressbar.lock().await.error().await;
-        return r;
-    } else {
-        progressbar.lock().await.success().await;
-    }
+        .collect::<FuturesUnordered<_>>()
+        .collect()
+        .await;
 
     super::verify(matches, config, repo, progressbars).await?;
 
