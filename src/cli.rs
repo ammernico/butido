@@ -1019,6 +1019,12 @@ pub fn cli() -> Command {
                     conditions on dependencies.
                 "#))
             )
+            .arg(Arg::new("dot")
+                .action(ArgAction::SetTrue)
+                .required(false)
+                .long("dot")
+                .help("Create a dot graph")
+            )
         )
 
         .subcommand(Command::new("metrics")
