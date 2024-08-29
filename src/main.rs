@@ -47,6 +47,7 @@
 extern crate diesel;
 
 use std::path::PathBuf;
+use std::process::ExitCode;
 
 use anyhow::anyhow;
 use anyhow::Context;
@@ -90,6 +91,11 @@ pub const VERSION_LONG: &str = concatdoc! {"
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    tokio::spawn(async move {
+        tokio::signal::ctrl_c().await.unwrap();
+        ExitCode::from(0)
+    });
+
     human_panic::setup_panic!(human_panic::Metadata::new(
         env!("CARGO_PKG_NAME"),
         env!("CARGO_PKG_VERSION")
