@@ -25,7 +25,7 @@ use shiplift::ExecContainerOptions;
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::RwLock;
 use tokio_stream::StreamExt;
-use tracing::{debug, trace};
+use tracing::{debug, error, info, trace};
 use typed_builder::TypedBuilder;
 
 use crate::config::EndpointName;
@@ -436,6 +436,21 @@ pub struct PreparedContainer<'a> {
     create_info: shiplift::rep::ContainerCreateInfo,
 }
 
+impl Drop for PreparedContainer<'_> {
+    fn drop(&mut self) {
+        let docker = self.endpoint.docker.clone();
+        let container_id = self.create_info.id.clone();
+
+        tokio::spawn(async move {
+            let container = docker.containers().get(&container_id);
+            match container.stop(None).await {
+                Ok(_) => info!("Stopped the container {}", container_id),
+                Err(e) => error!("Failed to stop container {}: {}", container_id, e),
+            }
+        });
+    }
+}
+
 impl<'a> PreparedContainer<'a> {
     async fn new(
         endpoint: &'a Endpoint,
@@ -811,8 +826,8 @@ impl<'a> PreparedContainer<'a> {
         Ok({
             StartedContainer {
                 endpoint: self.endpoint,
-                script: self.script,
-                create_info: self.create_info,
+                script: self.script.clone(),
+                create_info: self.create_info.clone(),
             }
         })
     }
