@@ -47,7 +47,6 @@
 extern crate diesel;
 
 use std::path::PathBuf;
-use std::process::ExitCode;
 
 use anyhow::anyhow;
 use anyhow::Context;
@@ -56,6 +55,7 @@ use anyhow::Result;
 use aquamarine as _;
 use clap::ArgMatches;
 use rustversion as _; // This crate is (occasionally) required (e.g., when we need version specific Clippy overrides)
+use tokio::runtime::Runtime;
 use tracing::{debug, error};
 use tracing_subscriber::layer::SubscriberExt;
 
@@ -89,13 +89,25 @@ pub const VERSION_LONG: &str = concatdoc! {"
     Debug Build:          ", env!("VERGEN_CARGO_DEBUG")
 };
 
-#[tokio::main]
-async fn main() -> Result<()> {
-    tokio::spawn(async move {
+fn main() -> Result<()> {
+    let runtime = Runtime::new().unwrap();
+    let handle = runtime.handle().clone();
+
+    handle.spawn(async move {
         tokio::signal::ctrl_c().await.unwrap();
-        ExitCode::from(0)
+        println!("Received ctrl-c, shutting download runtime");
+        let inner_runtime = Runtime::new().unwrap();
+        inner_runtime.shutdown_background();
     });
 
+    runtime.block_on(async move {
+        let _ = main2().await;
+    });
+
+    Ok(())
+}
+
+async fn main2() -> Result<()> {
     human_panic::setup_panic!(human_panic::Metadata::new(
         env!("CARGO_PKG_NAME"),
         env!("CARGO_PKG_VERSION")
@@ -306,7 +318,6 @@ async fn main() -> Result<()> {
             return Err(anyhow!("No subcommand"));
         }
     }
-
     Ok(())
 }
 
