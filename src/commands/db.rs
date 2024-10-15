@@ -594,6 +594,7 @@ fn jobs(
             } else {
                 String::from("-")
             };
+            println!("{:?}", submit);
 
             Ok(vec![
                 submit.uuid.to_string(),
