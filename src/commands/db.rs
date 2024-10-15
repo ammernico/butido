@@ -491,7 +491,7 @@ fn jobs(
 ) -> Result<()> {
     let csv = matches.get_flag("csv");
     let hdrs = crate::commands::util::mk_header(vec![
-        "submit", "job", "time", "host", "ok?", "package", "version", "distro", "type",
+        "submit", "job", "time", "host", "ok?", "pkg", "ver", "distro", "type",
     ]);
     let mut conn = conn_cfg.establish_connection()?;
     let older_than_filter = get_date_filter("older_than", matches)?;
