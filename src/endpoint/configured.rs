@@ -297,7 +297,7 @@ impl Endpoint {
         }
     }
 
-    pub async fn images(&self, name_filter: Option<&str>) -> Result<impl Iterator<Item = Image>> {
+    pub async fn images(&self, name_filter: Option<&str>) -> Result<impl Iterator<Item = Image> + use<>> {
         let mut listopts = shiplift::builder::ImageListOptions::builder();
 
         if let Some(name) = name_filter {

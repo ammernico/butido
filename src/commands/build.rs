@@ -277,7 +277,7 @@ pub async fn build(
     // linting the package scripts
     if matches.get_flag("no_lint") {
         warn!(parent: &loading_span, "No script linting will be performed!");
-    } else if let Some(linter) = crate::ui::find_linter_command(repo_root, config)? {
+    } else { match crate::ui::find_linter_command(repo_root, config)? { Some(linter) => {
         let all_packages = dag.all_packages();
         let bar = progressbars.bar()?;
         bar.set_length(all_packages.len() as u64);
@@ -285,9 +285,9 @@ pub async fn build(
 
         let iter = all_packages.into_iter();
         crate::commands::util::lint_packages(iter, &linter, config, bar).await?;
-    } else {
+    } _ => {
         warn!(parent: &loading_span, "No linter set in configuration, no script linting will be performed!");
-    } // linting
+    }}} // linting
 
     dag.all_packages()
         .into_iter()

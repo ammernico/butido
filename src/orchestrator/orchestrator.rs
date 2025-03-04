@@ -827,14 +827,14 @@ impl<'a> JobTask<'a> {
                 // If there is none, there won't be a replacement artifact
                 .filter_map(|(full_artifact_path, _)| {
                     trace!("Searching for {:?} in stores", full_artifact_path.display());
-                    if let Some(ap) = staging_store.get(full_artifact_path.artifact_path()) {
+                    match staging_store.get(full_artifact_path.artifact_path()) { Some(ap) => {
                         Some(ap.clone())
-                    } else {
+                    } _ => {
                         self.release_stores
                             .iter()
                             .find_map(|rs| rs.get(full_artifact_path.artifact_path()))
                             .cloned()
-                    }
+                    }}
                 })
                 .map(ProducedArtifact::Reused)
                 .collect::<Vec<ProducedArtifact>>();

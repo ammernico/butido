@@ -192,11 +192,11 @@ impl<'a> FindArtifacts<'a> {
                 Ok((_, bl)) => *bl,
             })
             .and_then_ok(|(art, _)| {
-                if let Some(release) = art.get_release(&mut self.database_pool.get().unwrap())? {
+                match art.get_release(&mut self.database_pool.get().unwrap())? { Some(release) => {
                     Ok((art, Some(release.release_date)))
-                } else {
+                } _ => {
                     Ok((art, None))
-                }
+                }}
             })
             .and_then_ok(|(p, ndt)| ArtifactPath::new(PathBuf::from(p.path)).map(|a| (a, ndt)))
             .and_then_ok(|(artpath, ndt)| {
