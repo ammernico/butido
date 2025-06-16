@@ -81,8 +81,10 @@ unindent = "0.2"
 url = { version = "2", features = ["serde"] }
 uuid = { version = "1", features = ["serde", "v4"] }
 walkdir = "2"
-which = "8"
+which = "7"
 xdg = "3"
+ratatui = "0.29"
+crossterm = "0.29"
 
 [build-dependencies]
 anyhow = "1"

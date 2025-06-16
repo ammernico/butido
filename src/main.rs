@@ -53,6 +53,7 @@ use anyhow::Error;
 use anyhow::Result;
 use aquamarine as _;
 use clap::ArgMatches;
+use crossterm::event::{self, Event};
 use rustversion as _; // This crate is (occasionally) required (e.g., when we need version specific Clippy overrides)
 use tracing::{debug, error, warn};
 use tracing_subscriber::layer::SubscriberExt;
@@ -71,6 +72,7 @@ mod package;
 mod repository;
 mod schema;
 mod source;
+mod tui;
 mod ui;
 mod util;
 
@@ -200,7 +202,9 @@ async fn main() -> Result<()> {
 
             let repo = load_repo()?;
 
-            crate::commands::build(
+            let mut terminal = ratatui::init();
+
+            let build_future = crate::commands::build(
                 repo_path,
                 matches,
                 progressbars,
@@ -208,9 +212,17 @@ async fn main() -> Result<()> {
                 &config,
                 repo,
                 repo_path,
-            )
-            .await
-            .context("build command failed")?
+            );
+
+            loop {
+                terminal.draw(tui::draw).expect("failed to draw frame");
+                if matches!(event::read().expect("failed to read event"), Event::Key(_)) {
+                    break;
+                }
+            }
+            ratatui::restore();
+
+            build_future.await.context("build command failed")?
         }
         Some(("what-depends", matches)) => {
             let repo = load_repo()?;
