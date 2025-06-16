@@ -106,8 +106,7 @@ const CONTAINER_ID_LENGTH: usize = 7;
 ///                 SCH->>JT1: [Artifacts]
 ///                 JT1->>-JT1: send_artifacts
 ///             and
-///                 loop until dependencies received
-///                     JT2->>JT2: recv()
+///                 loop until dependencies received ///                     JT2->>JT2: recv()
 ///                 end
 ///
 ///                 JT2->>+JT2: build()
@@ -542,6 +541,16 @@ struct TaskPreparation<'a> {
     database: Pool<ConnectionManager<PgConnection>>,
 }
 
+enum JobTaskStatus {
+    Booting,
+    Waiting,
+    Stopped,
+    ReusingArtifact,
+    Preparing,
+    Running,
+    StoppingErrorsFromChild,
+}
+
 /// Helper type for executing one job task
 ///
 /// This type represents a task for a job that can immediately be executed (see `JobTask::run()`).
@@ -549,6 +558,7 @@ struct JobTask<'a> {
     jobdef: JobDefinition<'a>,
 
     bar: ProgressBar,
+    job_task_status: JobTaskStatus,
 
     config: &'a Configuration,
     git_author_env: Option<&'a (EnvironmentVariableName, String)>,
@@ -595,6 +605,9 @@ impl Drop for JobTask<'_> {
             };
 
             let max_endpoint_name_length = self.scheduler.max_endpoint_name_length();
+            self.job_task_status = JobTaskStatus::Stopped;
+
+            /*
             self.bar.finish_with_message(format!(
                 "{:-<max_endpoint_name_length$} {:-<CONTAINER_ID_LENGTH$} {} {} {} {} Stopped, {msg}",
                 "",
@@ -605,6 +618,8 @@ impl Drop for JobTask<'_> {
                 self.jobdef.job.package().version(),
                 msg = errmsg.yellow()
             ));
+             */
+            self.bar.finish();
         }
     }
 }
@@ -617,6 +632,7 @@ impl<'a> JobTask<'a> {
     ) -> Self {
         let bar = prep.bar.clone();
         let max_endpoint_name_length = prep.scheduler.max_endpoint_name_length();
+        /*
         bar.set_message(format!(
             "{:-<max_endpoint_name_length$} {:-<CONTAINER_ID_LENGTH$} {} {} {} {} Booting",
             "",
@@ -626,10 +642,12 @@ impl<'a> JobTask<'a> {
             prep.jobdef.job.package().name(),
             prep.jobdef.job.package().version()
         ));
+        */
         JobTask {
             jobdef: prep.jobdef,
 
             bar,
+            job_task_status: JobTaskStatus::Booting,
 
             config: prep.config,
             git_author_env: prep.git_author_env,
@@ -684,6 +702,8 @@ impl<'a> JobTask<'a> {
         let max_endpoint_name_length = self.scheduler.max_endpoint_name_length();
         while !all_dependencies_are_in(&self.jobdef.dependencies, &received_dependencies) {
             // Update the status bar message
+            self.job_task_status = JobTaskStatus::Waiting;
+            /*
             self.bar.set_message(format!(
                 "{:-<max_endpoint_name_length$} {:-<CONTAINER_ID_LENGTH$} {} {} {} {} Waiting, ({}/{})",
                 "",
@@ -698,6 +718,7 @@ impl<'a> JobTask<'a> {
                     .count(),
                 dep_len
             ));
+             */
             trace!(job_uuid = %self.jobdef.job.uuid(), "Updated bar");
 
             let continue_receiving = {
@@ -727,6 +748,8 @@ impl<'a> JobTask<'a> {
                 self.sender[0].send(Err(received_errors)).await;
 
                 // ... and stop operation, because the whole tree will fail anyways.
+                self.job_task_status = JobTaskStatus::StoppingErrorsFromChild;
+                /*
                 self.bar.finish_with_message(format!(
                     "{:-<max_endpoint_name_length$} {:-<CONTAINER_ID_LENGTH$} {} {} {} {} Stopping, errors from child received",
                     "",
@@ -736,6 +759,8 @@ impl<'a> JobTask<'a> {
                     self.jobdef.job.package().name(),
                     self.jobdef.job.package().version()
                 ));
+                */
+                self.bar.finish();
                 return Ok(());
             }
 
@@ -855,6 +880,8 @@ impl<'a> JobTask<'a> {
                             )
                         })?;
                 }
+                self.job_task_status = JobTaskStatus::ReusingArtifact;
+                /*
                 self.bar.finish_with_message(format!(
                     "{:-<max_endpoint_name_length$} {:-<CONTAINER_ID_LENGTH$} {} {} {} {} Reusing artifact",
                     "",
@@ -864,6 +891,8 @@ impl<'a> JobTask<'a> {
                     self.jobdef.job.package().name(),
                     self.jobdef.job.package().version()
                 ));
+                */
+                self.bar.finish();
                 return Ok(());
             }
         }
@@ -883,6 +912,8 @@ impl<'a> JobTask<'a> {
             "Dependency artifacts = {:?}",
             dependency_artifacts
         );
+        self.job_task_status = JobTaskStatus::Preparing;
+        /*
         self.bar.set_message(format!(
             "{:-<max_endpoint_name_length$} {:-<CONTAINER_ID_LENGTH$} {} {} {} {} Preparing...",
             "",
@@ -892,6 +923,7 @@ impl<'a> JobTask<'a> {
             self.jobdef.job.package().name(),
             self.jobdef.job.package().version()
         ));
+        */
 
         // Create a RunnableJob object
         let runnable = RunnableJob::build_from_job(
@@ -903,6 +935,8 @@ impl<'a> JobTask<'a> {
             dependency_artifacts,
         )?;
 
+        self.job_task_status = JobTaskStatus::Running;
+        /*
         self.bar.set_message(format!(
             "{:-<max_endpoint_name_length$} {:-<CONTAINER_ID_LENGTH$} {} {} {} {}",
             "",
@@ -912,6 +946,7 @@ impl<'a> JobTask<'a> {
             self.jobdef.job.package().name(),
             self.jobdef.job.package().version()
         ));
+        */
         let job_uuid = *self.jobdef.job.uuid();
 
         // Schedule the job on the scheduler
