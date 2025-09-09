@@ -215,10 +215,22 @@ async fn main() -> Result<()> {
             );
 
             loop {
-                terminal.draw(tui::draw).expect("failed to draw frame");
+                /*
+                 *     color_eyre::install()?;
+                 let terminal = ratatui::init();
+                 let app_result = App::new().run(terminal);
+                 ratatui::restore();
+                 app_result
+                terminal.draw(tui::run).expect("failed to draw frame");
                 if matches!(event::read().expect("failed to read event"), Event::Key(_)) {
                     break;
                 }
+                */
+                color_eyre::install()?;
+                let terminal = ratatui::init();
+                let app_result = App::new().run(terminal);
+                ratatui::restore();
+                app_result
             }
             ratatui::restore();
 
