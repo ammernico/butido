@@ -13,24 +13,21 @@ use indicatif::*;
 
 #[derive(Clone, Debug, CopyGetters)]
 pub struct ProgressBars {
-    bar_template: String,
+    _bar_template: String,
 
     #[getset(get_copy = "pub")]
     hide: bool,
 }
 
 impl ProgressBars {
-    pub fn setup(bar_template: String, hide: bool) -> Self {
-        ProgressBars { bar_template, hide }
+    pub fn setup(_bar_template: String, hide: bool) -> Self {
+        ProgressBars {
+            _bar_template,
+            hide,
+        }
     }
 
     pub fn bar(&self) -> anyhow::Result<ProgressBar> {
-        if self.hide {
-            Ok(ProgressBar::hidden())
-        } else {
-            let b = ProgressBar::new(1);
-            b.set_style(ProgressStyle::default_bar().template(&self.bar_template)?);
-            Ok(b)
-        }
+        Ok(ProgressBar::hidden())
     }
 }
