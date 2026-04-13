@@ -42,9 +42,6 @@ pub use release::release;
 mod source;
 pub use source::source;
 
-mod versions_of;
-pub use versions_of::versions_of;
-
 mod metrics;
 pub use metrics::metrics;
 
