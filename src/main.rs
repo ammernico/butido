@@ -275,13 +275,6 @@ async fn main() -> Result<()> {
                 .context("lint command failed")?
         }
 
-        Some(("tree-of", matches)) => {
-            let repo = load_repo()?;
-            crate::commands::tree_of(matches, repo, &config)
-                .await
-                .context("tree-of command failed")?
-        }
-
         Some(("metrics", _)) => {
             let repo = load_repo()?;
             let pool = db_connection_config.establish_pool()?;

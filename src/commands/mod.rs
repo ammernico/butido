@@ -45,9 +45,6 @@ pub use source::source;
 mod versions_of;
 pub use versions_of::versions_of;
 
-mod tree_of;
-pub use tree_of::tree_of;
-
 mod metrics;
 pub use metrics::metrics;
 

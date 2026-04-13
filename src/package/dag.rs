@@ -8,10 +8,7 @@
 // SPDX-License-Identifier: EPL-2.0
 //
 
-use std::borrow::Cow;
 use std::collections::HashMap;
-use std::io::Result as IoResult;
-use std::io::Write;
 
 use anyhow::anyhow;
 use anyhow::Context;
@@ -22,10 +19,7 @@ use itertools::Itertools;
 use petgraph::acyclic::Acyclic;
 use petgraph::data::Build;
 use petgraph::graph::DiGraph;
-use petgraph::graph::EdgeIndex;
 use petgraph::graph::NodeIndex;
-use ptree::Style;
-use ptree::TreeItem;
 use resiter::AndThen;
 use tracing::trace;
 
@@ -41,9 +35,6 @@ use crate::repository::Repository;
 pub struct Dag {
     #[getset(get = "pub")]
     dag: Acyclic<DiGraph<Package, DependencyType>>,
-
-    #[getset(get = "pub")]
-    root_idx: NodeIndex,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -248,7 +239,6 @@ impl Dag {
                 |_, e| (*e).clone(),
             ))
             .unwrap(), // The dag is already acyclic so this cannot fail
-            root_idx,
         })
     }
 
@@ -262,56 +252,6 @@ impl Dag {
             .node_indices()
             .filter_map(|idx| self.dag.node_weight(idx))
             .collect()
-    }
-
-    pub fn display(&self) -> DagDisplay<'_> {
-        DagDisplay(self, self.root_idx, None)
-    }
-}
-
-#[derive(Clone)]
-pub struct DagDisplay<'a>(&'a Dag, NodeIndex, Option<EdgeIndex>);
-
-impl TreeItem for DagDisplay<'_> {
-    type Child = Self;
-
-    fn write_self<W: Write>(&self, f: &mut W, _: &Style) -> IoResult<()> {
-        let p = self
-            .0
-            .dag
-            .node_weight(self.1)
-            .ok_or_else(|| anyhow!("Error finding node: {:?}", self.1))
-            .map_err(std::io::Error::other)?;
-        let dependency_type = match self.2 {
-            // Only the root package has no edge and we pretend it's a runtime dependency as we
-            // only mark build time dependencies in the output:
-            None => &DependencyType::Runtime,
-            Some(edge_idx) => self
-                .0
-                .dag
-                .edge_weight(edge_idx)
-                .ok_or_else(|| anyhow!("Error finding edge: {:?}", self.2))
-                .map_err(std::io::Error::other)?,
-        };
-        let extra_info = match dependency_type {
-            // We mark build time dependencies with a star:
-            &DependencyType::Build => "*",
-            _ => "",
-        };
-        write!(f, "{}{} {}", extra_info, p.name(), p.version())
-    }
-
-    fn children(&self) -> Cow<'_, [Self::Child]> {
-        let mut children_walker = self
-            .0
-            .dag
-            .neighbors_directed(self.1, petgraph::Outgoing)
-            .detach();
-        let mut children = Vec::<Self::Child>::new();
-        while let Some((edge_idx, node_idx)) = children_walker.next(&self.0.dag) {
-            children.push(DagDisplay(self.0, node_idx, Some(edge_idx)));
-        }
-        Cow::from(children)
     }
 }
 

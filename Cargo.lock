@@ -245,7 +245,6 @@ dependencies = [
  "parse-display",
  "petgraph",
  "pom",
- "ptree",
  "rand",
  "rayon",
  "regex",
@@ -2284,15 +2283,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8fd00f0bb2e90d81d1044c2b32617f68fcb9fa3bb7640c23e9c748e53fb30934"
 dependencies = [
  "unicode-ident",
-]
-
-[[package]]
-name = "ptree"
-version = "0.5.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "289cfd20ebec0e7ff2572e370dd7a1c9973ba666d3c38c5e747de0a4ada21f17"
-dependencies = [
- "serde",
 ]
 
 [[package]]
