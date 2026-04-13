@@ -52,7 +52,6 @@ use anyhow::Context;
 use anyhow::Error;
 use anyhow::Result;
 use aquamarine as _;
-use clap::ArgMatches;
 use rustversion as _; // This crate is (occasionally) required (e.g., when we need version specific Clippy overrides)
 use tracing::{debug, error, warn};
 use tracing_subscriber::layer::SubscriberExt;
@@ -193,7 +192,6 @@ async fn main() -> Result<()> {
 
     let db_connection_config = crate::db::DbConnectionConfig::parse(&config, &cli)?;
     match cli.subcommand() {
-        Some(("generate-completions", matches)) => generate_completions(matches),
         Some(("db", matches)) => crate::commands::db(db_connection_config, &config, matches)?,
         Some(("build", matches)) => {
             let pool = db_connection_config.establish_pool()?;
@@ -285,24 +283,4 @@ async fn main() -> Result<()> {
     }
 
     Ok(())
-}
-
-fn generate_completions(matches: &ArgMatches) {
-    use clap_complete::generate;
-    use clap_complete::Shell;
-
-    fn print_completions(shell: Shell, cmd: &mut clap::Command) {
-        eprintln!("Generating shell completions for {shell}...");
-        generate(
-            shell,
-            cmd,
-            cmd.get_name().to_string(),
-            &mut std::io::stdout(),
-        );
-    }
-
-    // src/cli.rs enforces that `shell` is set to a valid `Shell` so this is always true:
-    if let Some(shell) = matches.get_one::<Shell>("shell").copied() {
-        print_completions(shell, &mut cli::cli());
-    }
 }
