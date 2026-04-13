@@ -24,9 +24,6 @@ pub use env_of::env_of;
 mod find_artifact;
 pub use find_artifact::find_artifact;
 
-mod find_pkg;
-pub use find_pkg::find_pkg;
-
 mod dependencies_of;
 pub use dependencies_of::dependencies_of;
 

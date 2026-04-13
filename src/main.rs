@@ -241,13 +241,6 @@ async fn main() -> Result<()> {
                 .context("find-artifact command failed")?
         }
 
-        Some(("find-pkg", matches)) => {
-            let repo = load_repo()?;
-            crate::commands::find_pkg(matches, &config, repo)
-                .await
-                .context("find-pkg command failed")?
-        }
-
         Some(("source", matches)) => {
             let repo = load_repo()?;
             crate::commands::source(matches, &config, repo, progressbars)
