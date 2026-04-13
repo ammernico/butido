@@ -180,7 +180,7 @@ async fn main() -> Result<()> {
         .validate()
         .context("Failed to validate the butido configuration")?;
 
-    let hide_bars = cli.get_flag("hide_bars") || crate::util::stdout_is_pipe();
+    let hide_bars = true;
     let progressbars = ProgressBars::setup(config.progress_format().clone(), hide_bars);
 
     let load_repo = || -> Result<Repository> {
