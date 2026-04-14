@@ -224,13 +224,6 @@ async fn main() -> Result<()> {
                 .context("dependencies-of command failed")?
         }
 
-        Some(("env-of", matches)) => {
-            let repo = load_repo()?;
-            crate::commands::env_of(matches, repo)
-                .await
-                .context("env-of command failed")?
-        }
-
         Some(("source", matches)) => {
             let repo = load_repo()?;
             crate::commands::source(matches, &config, repo, progressbars)
