@@ -30,9 +30,6 @@ pub use lint::lint;
 mod what_depends;
 pub use what_depends::what_depends;
 
-mod release;
-pub use release::release;
-
 mod source;
 pub use source::source;
 

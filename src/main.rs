@@ -238,12 +238,6 @@ async fn main() -> Result<()> {
                 .context("source command failed")?
         }
 
-        Some(("release", matches)) => {
-            crate::commands::release(db_connection_config, &config, matches)
-                .await
-                .context("release command failed")?
-        }
-
         Some(("lint", matches)) => {
             let repo = load_repo()?;
             crate::commands::lint(repo_path, matches, progressbars, &config, repo)
