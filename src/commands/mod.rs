@@ -18,9 +18,6 @@ mod endpoint;
 pub use endpoint::endpoint;
 pub(super) mod endpoint_container;
 
-mod env_of;
-pub use env_of::env_of;
-
 mod dependencies_of;
 pub use dependencies_of::dependencies_of;
 
