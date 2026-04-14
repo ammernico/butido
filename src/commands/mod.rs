@@ -21,9 +21,6 @@ pub(super) mod endpoint_container;
 mod env_of;
 pub use env_of::env_of;
 
-mod find_artifact;
-pub use find_artifact::find_artifact;
-
 mod dependencies_of;
 pub use dependencies_of::dependencies_of;
 
