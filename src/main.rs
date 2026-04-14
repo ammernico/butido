@@ -231,14 +231,6 @@ async fn main() -> Result<()> {
                 .context("env-of command failed")?
         }
 
-        Some(("find-artifact", matches)) => {
-            let repo = load_repo()?;
-            let pool = db_connection_config.establish_pool()?;
-            crate::commands::find_artifact(matches, &config, progressbars, repo, pool)
-                .await
-                .context("find-artifact command failed")?
-        }
-
         Some(("source", matches)) => {
             let repo = load_repo()?;
             crate::commands::source(matches, &config, repo, progressbars)
