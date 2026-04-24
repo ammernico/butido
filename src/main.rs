@@ -231,13 +231,6 @@ async fn main() -> Result<()> {
                 .context("source command failed")?
         }
 
-        Some(("lint", matches)) => {
-            let repo = load_repo()?;
-            crate::commands::lint(repo_path, matches, progressbars, &config, repo)
-                .await
-                .context("lint command failed")?
-        }
-
         Some(("endpoint", matches)) => crate::commands::endpoint(matches, &config, progressbars)
             .await
             .context("endpoint command failed")?,
