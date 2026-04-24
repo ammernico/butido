@@ -21,9 +21,6 @@ pub(super) mod endpoint_container;
 mod dependencies_of;
 pub use dependencies_of::dependencies_of;
 
-mod what_depends;
-pub use what_depends::what_depends;
-
 mod source;
 pub use source::source;
 

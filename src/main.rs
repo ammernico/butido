@@ -210,12 +210,6 @@ async fn main() -> Result<()> {
             .await
             .context("build command failed")?
         }
-        Some(("what-depends", matches)) => {
-            let repo = load_repo()?;
-            crate::commands::what_depends(matches, &config, repo)
-                .await
-                .context("what-depends command failed")?
-        }
 
         Some(("dependencies-of", matches)) => {
             let repo = load_repo()?;
