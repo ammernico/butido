@@ -30,7 +30,4 @@ pub use what_depends::what_depends;
 mod source;
 pub use source::source;
 
-mod metrics;
-pub use metrics::metrics;
-
 mod util;
