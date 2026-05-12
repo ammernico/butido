@@ -20,12 +20,15 @@ use anyhow::Result;
 use clap::ArgMatches;
 use colored::Colorize;
 use tokio_stream::StreamExt;
-use tracing::{info, trace};
+use tracing::{debug, info, trace};
 
 use crate::config::*;
 use crate::package::Package;
 use crate::package::PackageName;
+use crate::package::PackageVersion;
 use crate::package::PackageVersionConstraint;
+use crate::package::ScriptBuilder;
+use crate::package::Shebang;
 use crate::repository::Repository;
 use crate::source::*;
 use crate::util::progress::ProgressBars;
@@ -47,6 +50,7 @@ pub async fn source(
             crate::commands::source::download::download(matches, config, repo, progressbars).await
         }
         Some(("of", matches)) => of(matches, config, repo).await,
+        Some(("print", matches)) => print_script(matches, config, repo).await,
         Some((other, _)) => Err(anyhow!("Unknown subcommand: {other}")),
         None => Err(anyhow!("No subcommand")),
     }
@@ -247,4 +251,46 @@ async fn of(matches: &ArgMatches, config: &Configuration, repo: Repository) -> R
             Ok(out)
         })
         .map(|_| ())
+}
+
+pub async fn print_script(
+    matches: &clap::ArgMatches,
+    config: &crate::config::Configuration,
+    repo: Repository,
+) -> Result<()> {
+    let pname = matches
+        .get_one::<String>("package_name")
+        .map(|s| s.to_owned())
+        .map(PackageName::from)
+        .unwrap(); // safe by clap
+
+    let pvers = matches
+        .get_one::<String>("package_version")
+        .map(|s| s.to_owned())
+        .map(PackageVersion::from);
+    info!("We want {} ({:?})", pname, pvers);
+
+    let packages = if let Some(pvers) = pvers {
+        debug!(
+            "Searching for package with version: '{}' '{}'",
+            pname, pvers
+        );
+        repo.find(&pname, &pvers)
+    } else {
+        debug!("Searching for package by name: '{}'", pname);
+        repo.find_by_name(&pname)
+    };
+    debug!("Found {} relevant packages", packages.len());
+
+    let shebang = Shebang::from(config.shebang().clone());
+
+    for package in packages {
+        let script = ScriptBuilder::new(&shebang).build(
+            package,
+            config.available_phases(),
+            *config.strict_script_interpolation(),
+        )?;
+        println!("{script}");
+    }
+    Ok(())
 }
