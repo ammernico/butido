@@ -27,6 +27,7 @@ use crate::package::Package;
 use crate::package::PackageName;
 use crate::package::PackageVersion;
 use crate::package::PackageVersionConstraint;
+use crate::package::PhaseName;
 use crate::package::ScriptBuilder;
 use crate::package::Shebang;
 use crate::repository::Repository;
@@ -285,9 +286,16 @@ pub async fn print_script(
     let shebang = Shebang::from(config.shebang().clone());
 
     for package in packages {
+        let phases = if let Some(phase) = matches.get_one::<String>("phase") {
+            let p = PhaseName(phase.to_owned());
+            Vec::from([p])
+        } else {
+            config.available_phases().to_owned()
+        };
+
         let script = ScriptBuilder::new(&shebang).build(
             package,
-            config.available_phases(),
+            &phases,
             *config.strict_script_interpolation(),
         )?;
         println!("{script}");

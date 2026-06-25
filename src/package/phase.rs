@@ -15,7 +15,7 @@ use serde::Serialize;
 
 #[derive(Clone, Debug, Serialize, Deserialize, Eq, PartialEq, Hash)]
 #[serde(transparent)]
-pub struct PhaseName(String);
+pub struct PhaseName(pub String);
 
 impl PhaseName {
     pub fn as_str(&self) -> &str {
