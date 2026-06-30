@@ -792,17 +792,50 @@ pub fn cli() -> Command {
                     .index(1)
                     .value_name("NAME")
                 )
-                .arg(Arg::new("package_version")
+                .arg(Arg::new("package_version_constraint")
                     .required(false)
                     .index(2)
-                    .value_name("VERSION")
-                    .help("Exact package version to print (string match)")
+                    .value_name("VERSION_CONSTRAINT")
+                    .help("A version constraint to search for (optional), e.g., '=1.0.0'")
                 )
                 .arg(Arg::new("phase")
                     .required(false)
-                    .index(3)
+                    .long("phase")
                     .value_name("PHASE")
                     .help("Print only this phase of the script")
+                )
+                .arg(Arg::new("matching")
+                    .required(false)
+                    .long("matching")
+                    .value_name("REGEX")
+                    .help("Download all packages where the package name matches REGEX")
+                )
+                .arg(Arg::new("image")
+                    .required(false)
+                    .value_name("IMAGE NAME")
+                    .short('I')
+                    .long("image")
+                    .help("Name of the Docker image to use")
+                    .long_help(indoc::indoc!(r#"
+                        Name of the Docker image to use.
+
+                        Required because tree might look different on different images because of
+                        conditions on dependencies.
+                    "#))
+                )
+                .arg(Arg::new("env")
+                    .required(false)
+                    .action(ArgAction::Append)
+                    .short('E')
+                    .long("env")
+                    .value_parser(env_pass_validator)
+                    .help("Additional env to be passed when building packages")
+                    .long_help(indoc::indoc!(r#"
+                        Additional env to be passed when building packages.
+
+                        Required because tree might look different on different images because of
+                        conditions on dependencies.
+                    "#))
                 )
             )
             .subcommand(Command::new("list-missing")

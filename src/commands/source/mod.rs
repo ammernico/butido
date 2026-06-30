@@ -20,19 +20,22 @@ use anyhow::Result;
 use clap::ArgMatches;
 use colored::Colorize;
 use tokio_stream::StreamExt;
-use tracing::{debug, info, trace};
+use tracing::{info, trace};
 
 use crate::config::*;
+use crate::package::condition::ConditionData;
+use crate::package::Dag;
 use crate::package::Package;
 use crate::package::PackageName;
-use crate::package::PackageVersion;
 use crate::package::PackageVersionConstraint;
 use crate::package::PhaseName;
 use crate::package::ScriptBuilder;
 use crate::package::Shebang;
 use crate::repository::Repository;
 use crate::source::*;
+use crate::util::docker::ImageNameLookup;
 use crate::util::progress::ProgressBars;
+use crate::util::EnvironmentVariableName;
 
 mod download;
 
@@ -262,43 +265,66 @@ pub async fn print_script(
     let pname = matches
         .get_one::<String>("package_name")
         .map(|s| s.to_owned())
-        .map(PackageName::from)
-        .unwrap(); // safe by clap
+        .map(PackageName::from);
 
     let pvers = matches
-        .get_one::<String>("package_version")
+        .get_one::<String>("package_version_constraint")
         .map(|s| s.to_owned())
-        .map(PackageVersion::from);
-    info!("We want {} ({:?})", pname, pvers);
+        .map(PackageVersionConstraint::try_from)
+        .transpose()?;
 
-    let packages = if let Some(pvers) = pvers {
-        debug!(
-            "Searching for package with version: '{}' '{}'",
-            pname, pvers
-        );
-        repo.find(&pname, &pvers)
-    } else {
-        debug!("Searching for package by name: '{}'", pname);
-        repo.find_by_name(&pname)
+    let additional_env = matches
+        .get_many::<String>("env")
+        .unwrap_or_default()
+        .map(AsRef::as_ref)
+        .map(crate::util::env::parse_to_env)
+        .collect::<Result<Vec<(EnvironmentVariableName, String)>>>()?;
+
+    let image_name_lookup = ImageNameLookup::create(config.docker().images())?;
+    let image_name = matches
+        .get_one::<String>("image")
+        .map(|s| image_name_lookup.expand(s))
+        .transpose()?;
+
+    let condition_data = ConditionData {
+        image_name: image_name.as_ref(),
+        env: &additional_env,
     };
-    debug!("Found {} relevant packages", packages.len());
+
+    let dags: Vec<_> = repo
+        .packages()
+        .filter(|p| pname.as_ref().map(|n| p.name() == n).unwrap_or(true))
+        .filter(|p| {
+            pvers
+                .as_ref()
+                .map(|v| v.matches(p.version()))
+                .unwrap_or(true)
+        })
+        .map(|package| Dag::for_root_package(package.clone(), &repo, None, &condition_data))
+        .collect();
 
     let shebang = Shebang::from(config.shebang().clone());
+    let phases = if let Some(phase) = matches.get_one::<String>("phase") {
+        let p = PhaseName(phase.to_owned());
+        Vec::from([p])
+    } else {
+        config.available_phases().to_owned()
+    };
 
-    for package in packages {
-        let phases = if let Some(phase) = matches.get_one::<String>("phase") {
-            let p = PhaseName(phase.to_owned());
-            Vec::from([p])
-        } else {
-            config.available_phases().to_owned()
-        };
-
-        let script = ScriptBuilder::new(&shebang).build(
-            package,
-            &phases,
-            *config.strict_script_interpolation(),
-        )?;
-        println!("{script}");
+    for dag in dags {
+        for pkg in dag
+            .expect("Failed to get package from dag node weight")
+            .dag()
+            .node_weights()
+        {
+            let script = ScriptBuilder::new(&shebang).build(
+                pkg,
+                &phases,
+                *config.strict_script_interpolation(),
+            )?;
+            println!("{script}");
+        }
     }
+
     Ok(())
 }
