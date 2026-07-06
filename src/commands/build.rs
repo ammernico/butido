@@ -381,6 +381,7 @@ pub async fn build(
             v = mkgreen(&db_package.version)
         )?;
         writeln!(outlock, "On repo hash:    {}", mkgreen(&db_githash.hash))?;
+        writeln!(outlock, "\n")?;
     }
 
     trace!(parent: &submit_span, "Setting up job sets");
@@ -431,9 +432,6 @@ pub async fn build(
     let mut had_error = false;
     for (job_uuid, error) in errors {
         had_error = true;
-        for cause in error.chain() {
-            writeln!(outlock, "{}: {}", "[ERROR]".red(), cause)?;
-        }
 
         let data = schema::jobs::table
             .filter(schema::jobs::dsl::uuid.eq(job_uuid))
@@ -449,7 +447,7 @@ pub async fn build(
         )?;
         writeln!(
             outlock,
-            "for package {} {}\n\n",
+            "for package {} {}\n",
             data.1.name.to_string().red(),
             data.1.version.to_string().red()
         )?;
@@ -488,7 +486,6 @@ pub async fn build(
                 writeln!(outlock, "{lineno}{line}").map_err(Error::from)
             })?;
 
-        writeln!(outlock, "\n\n")?;
         if error_catched {
             if let Some(last_phase) = last_phase {
                 writeln!(outlock, "\tJob errored in Phase '{last_phase}'")?;
@@ -500,6 +497,9 @@ pub async fn build(
                 "{}",
                 "Error seems not to be caused by packaging script.".red()
             )?;
+        }
+        for cause in error.chain() {
+            writeln!(outlock, "{}: {}", "[ERROR]".red(), cause)?;
         }
     }
 
