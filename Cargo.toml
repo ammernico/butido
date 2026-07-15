@@ -25,7 +25,6 @@ maintenance = { status = "passively-maintained" }
 
 [dependencies]
 anyhow = "1"
-aquamarine = "0.6"
 ascii_table = { version = "5", features = ["auto_table_width", "color_codes", "wide_characters"] }
 base16ct = "1"
 bytesize = "2"
