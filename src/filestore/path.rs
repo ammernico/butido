@@ -175,6 +175,10 @@ impl ArtifactPath {
     pub fn to_str(&self) -> Option<&str> {
         self.0.to_str()
     }
+
+    pub fn to_lowercase(&self) -> Option<String> {
+        self.0.to_str().map(|s| s.to_lowercase())
+    }
 }
 
 impl AsRef<Path> for ArtifactPath {
