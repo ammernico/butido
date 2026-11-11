@@ -129,15 +129,16 @@ async fn top(matches: &ArgMatches, container: Container<'_>) -> Result<()> {
 
 async fn kill(matches: &ArgMatches, container: Container<'_>) -> Result<()> {
     let signal = matches.get_one::<String>("signal");
-    container
-        .kill(signal.map(|s| s.as_str()))
-        .await}
+    container.kill(signal.map(|s| s.as_str())).await
+}
 
 async fn delete(container: Container<'_>) -> Result<()> {
-    container.delete().await}
+    container.delete().await
+}
 
 async fn start(container: Container<'_>) -> Result<()> {
-    container.start().await}
+    container.start().await
+}
 
 async fn stop(matches: &ArgMatches, container: Container<'_>) -> Result<()> {
     container
@@ -146,7 +147,8 @@ async fn stop(matches: &ArgMatches, container: Container<'_>) -> Result<()> {
                 .get_one::<u64>("timeout")
                 .map(|t| std::time::Duration::from_secs(*t))
         })
-        .await}
+        .await
+}
 
 async fn exec(matches: &ArgMatches, container: Container<'_>) -> Result<()> {
     use std::io::Write;

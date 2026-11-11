@@ -834,7 +834,8 @@ impl<'a> PreparedContainer<'a> {
 
                 container
                     .copy_file_into(destination, &buf)
-                    .await.inspect(|_| trace!("Copying patch {} successful", patch.display()))
+                    .await
+                    .inspect(|_| trace!("Copying patch {} successful", patch.display()))
                     .with_context(|| {
                         anyhow!(
                             "Copying patch {} to container {}",
